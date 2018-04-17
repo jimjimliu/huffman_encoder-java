@@ -1,0 +1,327 @@
+import java.util.Arrays;
+import java.util.Iterator;
+
+//import HuffmanTree.HuffmanNode;
+
+/**
+ * HuffmanTree creates and stores a Huffman tree based on Huffman nodes (an inner class),
+ * It also provide a series of methods for encoding and decoding.
+ * It uses a BitFeedOut which allows a stream of bits be sent continuously 
+ * to be used for encoding.
+ * It also uses an Iterator<Byte> which allows a stream of bits to be read continuously
+ * to be used when decoding.
+ * 
+ * @author Lucia Moura
+ */
+
+public class HuffmanTree {
+ 
+ public static int EndOfText=((int)'\uffff')+1; //special symbol created to indicate end of text
+ 
+ HuffmanNode root=null; // root of the Huffman tree
+ HuffmanNode[] leafWhereLetterIs;   // array indexed by characters, storing a reference to 
+          // the Huffman Node (leaf) in which the character is stored
+
+ 
+ // Constructor receives frequency information which is used to call BuildTree
+ public HuffmanTree (LetterFrequencies letterFreq) {
+  
+  root=BuildTree (letterFreq.getFrequencies(),letterFreq.getLetters());
+  
+ }
+ 
+ public HuffmanTree(int[] frequency, char[] ch){
+	 root=BuildTree (frequency,ch);
+ }
+
+ // BuildTree builds the Huffman tree based on the letter frequencies
+ 
+ private HuffmanNode BuildTree(int[] frequencies,char[] letters) {
+  
+  
+ /******** STEP 2 of Algorithm Huffman(X) **********************************/
+ // we use a priority queue to store frequencies of subtrees created 
+ // during the construction of the Huffman tree
+ HeapPriorityQueue<HuffmanNode, HuffmanNode> heap = 
+   new HeapPriorityQueue<HuffmanNode, HuffmanNode>(frequencies.length+1);
+  
+    // initialize array leftWhereLetterIs 
+ leafWhereLetterIs =new HuffmanNode[(int)'\uffff'+2]; // need 2^16+1 spaces
+ for (int i=0; i< (int)'\uffff'+2; i++)
+  leafWhereLetterIs[i]=null;
+ 
+ /********* STEPS 3-5 of Algorithm Huffman(X) **********************************/
+ // creating one node per letter as a single tree inserted into the priority queue
+ for (int i=0; i<frequencies.length; i++) {
+  if (frequencies[i]>0) {
+    
+    //the single node binary tree
+   HuffmanNode node= new HuffmanNode( (int)letters[i], frequencies[i],null,null,null);
+   
+   leafWhereLetterIs[(int)letters[i]]=node;
+   
+   heap.insert(node,node);
+  
+  }
+ }
+ // creating node for "EndOfText" special symbol
+ HuffmanNode specialNode= new HuffmanNode( EndOfText,0,null,null,null);
+ leafWhereLetterIs[EndOfText]=specialNode; // last position reserved
+ heap.insert(specialNode,specialNode);
+ 
+ 
+ /************ STEPS 6-13 of Algorithm Huffman(X): task to be implemented ************/
+ /* Assignment#2 method A
+  * Author:Junhan Liu
+  * 7228243
+  * 2016/10/13
+  */
+
+ while(heap.size() > 1){
+	
+	 Entry<HuffmanNode, HuffmanNode> e1 = heap.removeMin();
+	 Entry<HuffmanNode, HuffmanNode> e2 = heap.removeMin();
+	 
+	 int newFrequency = e1.getKey().getFrequency() + e2.getKey().getFrequency(); 
+	
+	 HuffmanNode newTree  = new HuffmanNode(0,newFrequency,null, e1.getValue(), e2.getValue());
+	 e1.getValue().parent = newTree;
+	 e2.getValue().parent = newTree;
+	 
+	 heap.insert(newTree, newTree);	 
+ }
+ Entry<HuffmanNode, HuffmanNode> e = heap.removeMin();
+ 
+ /******       HERE YOU MUST IMPLEMENT THE REST OF ALGORITHM HUFFMAN(X)  ************/
+ 
+ return e.getValue(); /***** this must be altered to return the root of the tree build by steps 6-13 ****/
+ 
+ }
+ 
+// encodeCharacter encodes the character c using the Huffman tree
+// returning its encoding as String of 0s and 1s representing the bits
+// In the handout example if c='G' this method will return "011"
+ 
+private String encodeCharacter(int c) {
+  
+  /*** Step in this method to be implemented by students                  
+   * 
+   * 
+   * Encode the character into its codeword using the Huffman tree.
+   * Remember that the algorithm must run in O(L)
+   * where L is the size of the codeword generated
+   * 
+   * 
+   ****/
+	/* Assignment#2 method B
+	   * Author:Junhan Liu
+	   * 7228243
+	   * 2016/10/13
+	   */
+	
+	HuffmanNode node = leafWhereLetterIs[c];
+	StringBuilder result = new StringBuilder();
+	
+	while( node.parent != null ){
+		if( node.parent.left != node ){
+			node = node.parent;
+			result.append("1");
+		}
+		else{
+			node = node.parent;
+			result.append("0");
+		}
+		
+	}
+	result.reverse();
+  return result.toString();   /*** note this is returning a wrong output (always 0)***/
+ }
+
+
+
+// Encode the a character c using the Huffman tree
+// sending the encoded bits to argument BitFeedOut bfo
+// (please do not change this method)
+
+ public void encodeCharacter (int c, BitFeedOut bfo) {
+  String s=encodeCharacter(c);
+  for (int i=0; i< s.length();i++) bfo.putNext(s.charAt(i));
+ 
+ }
+ 
+// decodeCharacter receives Iterator<Byte> bit that iterates through a sequence
+//  of bits of the  encoded string; this sequence must be
+// compatible with the Huffman tree (has been previously generated by
+// a tree like this one.
+// This method will be "consuming" bits until it completes the
+// decoding of a letter which is then returned.
+// In the handout example, if the next bits are 011001...
+// decodeCharacter will apply bit.next() 3 times until if decodes
+// the first letter, which in this case is 'G'
+ 
+public int decodeCharacter(Iterator<Byte> bit) {
+  
+  if (root == null) return Integer.MAX_VALUE; // empty tree is not valid when decoding
+  
+  /**** Steps of this method to be implemented by students ****/
+     
+  /***
+   * 
+   * Decodes sequence of next bits returned by several
+   * calls to bit.next() until it completes the decoding of the next character
+   * 
+   *  Note1: the return value of bit.next() is a Byte but should be interpreted as a bit; 
+   *  it must be either 0 or 1.
+   *  Note2: the return value is an integer (unicode) of the character; for a character
+   *  char c this can be obtained by casting the character: (int) c
+   *  
+   * Remember that the algorithm must run in O(L)
+   * where L is the size of the codeword for the character
+   * 
+   * 
+   */
+  /* Assignment#2 method C
+   * Author:Junhan Liu
+   * 7228243
+   * 2016/10/13
+   */
+
+  HuffmanNode node = root;
+  int result = 0;
+  boolean flag = true;
+  
+  while( flag ){
+	  byte temp = bit.next();
+	  
+	  if( temp == 1 ){
+		  node = node.right;
+		  
+		  if(node.isLeaf()){ result = node.getLetter();flag = false;}
+	  }
+	  
+	  else if( temp == 0 ){
+		  node = node.left;
+		  
+		  if(node.isLeaf()){ result = node.getLetter();flag = false;}
+	  }
+  }
+ 
+  
+  return result; /*** this needs to be changed since it is returning a 
+                          wrong output (always code of special character EndOfText)***/
+ }
+ 
+
+ // auxiliary methods for printing the codes in the Huffman tree
+
+ void printCodeTable() {
+  System.out.println("**** Huffman Tree: Character Codes ****");
+  if (root!=null) 
+   traverseInOrder(root,""); // uses inorder traversal to print the codes
+  else 
+   System.out.println("No character codes: the tree is still empty");
+  System.out.println("***************************************");
+  
+ }
+ 
+ // In-order traversal of the Huffman tree keeping track of
+ // the paths to leaves so it can print the codeword for each letter
+ private void traverseInOrder(HuffmanNode current, String c) {
+  if (current.isLeaf()) {
+  if (current.getLetter()!=EndOfText)
+         System.out.println((char)current.getLetter()+":"+c);
+  else   System.out.println("EndOfText:"+c);
+  }
+  else { 
+   traverseInOrder(current.leftChild(),c+"0");
+   traverseInOrder(current.rightChild(),c+"1");
+  }
+   
+ }
+ 
+ // provided byte encoding of the frequency information
+ // in the format of 4 bytes per letter
+ // 2 first bytes represent letter 2 last bytes represent frequency
+ // This is useful for file decoding where the letter frequencies need
+ // to be stored in a "header" of the encoded file 
+ // (not used in the current version of the assignment)
+ 
+ byte[] freqsToBytes() {
+    int b=0;
+ byte [] treeBytes= new byte[(int)'\uffff'*4];
+    for (int i=0;i<'\uffff';i++) {
+  if (leafWhereLetterIs[i]!=null) {
+   int freq=leafWhereLetterIs[i].getFrequency();
+   char letter=(char)leafWhereLetterIs[i].getLetter();
+   treeBytes[b++]= (byte)(((int)letter)/256);
+   treeBytes[b++]= (byte)(((int)letter)%256);
+   treeBytes[b++]= (byte)(freq/256); 
+   treeBytes[b++]= (byte)(freq%256);   
+  }
+ }
+    return Arrays.copyOf(treeBytes, b);
+ }
+ 
+  /**** inner class to Huffman tree that implements a Node in the tree ****/
+    // nothing to be changed in this inner class
+  public class HuffmanNode implements Comparable<HuffmanNode> {
+  
+  int letter; // if the node is a leaf it will store a letter, otherwise it store null
+     int frequency; // stores the sum of the frequencies of all leaves of the tree rooted at this node
+  private HuffmanNode parent, left, right; // reference to parent, left and right nodes.
+  
+  public HuffmanNode() {
+   parent=left=right=null;
+   frequency=-1;
+  }
+  
+  public HuffmanNode(int letter, int frequency, HuffmanNode parent, HuffmanNode left, HuffmanNode right) {
+   this.letter= letter;
+   this.frequency=frequency;
+   this.parent=parent; 
+   this.left=left;
+   this.right=right;
+  }
+  
+  
+  boolean isLeaf() { return (left==null && right==null);}
+  
+  // getter methods
+  
+  HuffmanNode leftChild() { return left;}
+  
+  HuffmanNode rightChild() { return right;}
+  
+  HuffmanNode parent() { return parent;}
+  
+  int getLetter() {return letter;}
+  
+  int getFrequency() {return frequency;}
+
+  // setter methods
+  
+  void setLeftChild(HuffmanNode leftVal) { left=leftVal; }
+  
+  void setRightChild(HuffmanNode rightVal) { right=rightVal; }
+  
+  void setParent(HuffmanNode parentVal) { parent=parentVal; }
+  
+  void setLetter(char letterVal) { letter = letterVal;}
+  
+  void setFrequency(int freqVal) { frequency = freqVal; }
+
+  @Override
+  public int compareTo(HuffmanNode o) {
+   if (this.frequency==o.frequency) {
+    return this.letter-o.letter;
+   }
+   else return this.frequency-o.frequency;
+   
+  }
+  
+ }
+
+ 
+ 
+}
+ 
